@@ -1,0 +1,4 @@
+// SpaceRace - LibGDX Multi-Module Project
+// Defines the subprojects included in this build.
+
+include 'core', 'lwjgl3'
