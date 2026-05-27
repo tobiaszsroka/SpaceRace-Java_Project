@@ -1,47 +1,20 @@
-// =============================================================================
-// SpaceRace - LWJGL3 Desktop Launcher Module
-// =============================================================================
-// Desktop backend using LWJGL3. This module contains the main entry point
-// and platform-specific configuration for running the game on desktop.
-// =============================================================================
-
 apply plugin: 'java'
 apply plugin: 'application'
 
-// ---------------------------------------------------------------------------
-// Application entry point
-// ---------------------------------------------------------------------------
 application {
     mainClass = 'com.spacerace.lwjgl3.Lwjgl3Launcher'
 }
 
-// ---------------------------------------------------------------------------
-// Dependencies
-// ---------------------------------------------------------------------------
 dependencies {
-    // The core game module (platform-independent logic)
     implementation project(':core')
-
-    // LibGDX LWJGL3 backend — provides the desktop windowing, input, and audio
     implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
-
-    // Native desktop libraries (OpenGL, OpenAL, etc.) bundled for all desktop OS
     implementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
 }
 
-// ---------------------------------------------------------------------------
-// Run configuration
-// ---------------------------------------------------------------------------
-// Set the working directory to the shared assets folder so that
-// Gdx.files.internal() resolves correctly when running from the IDE or CLI.
 run {
     workingDir = rootProject.file('assets')
 }
 
-// ---------------------------------------------------------------------------
-// JAR packaging
-// ---------------------------------------------------------------------------
-// Embed the Main-Class attribute so the JAR is directly executable.
 jar {
     manifest {
         attributes 'Main-Class': application.mainClass

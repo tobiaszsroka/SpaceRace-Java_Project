@@ -1,13 +1,5 @@
-// =============================================================================
-// SpaceRace - Core Module
-// =============================================================================
-// Contains all platform-independent game logic, screens, entities, and assets.
-// This module has NO platform-specific dependencies — only the LibGDX core API.
-// =============================================================================
-
 apply plugin: 'java-library'
 
 dependencies {
-    // LibGDX core framework — the platform-agnostic API used by all game code
     api "com.badlogicgames.gdx:gdx:$gdxVersion"
 }

@@ -1,46 +1,27 @@
-// =============================================================================
-// SpaceRace - Root Build Configuration
-// =============================================================================
-// Multi-project Gradle build for a LibGDX desktop game.
-// LibGDX 1.14.0 | Java 17 | Gradle 9.5.1
-// =============================================================================
-
-// ---------------------------------------------------------------------------
-// Shared properties available to all subprojects via rootProject.ext
-// ---------------------------------------------------------------------------
 ext {
     gdxVersion = '1.14.0'
     appName = 'SpaceRace'
 }
 
-// ---------------------------------------------------------------------------
-// Configuration applied to every project (root + subprojects)
-// ---------------------------------------------------------------------------
 allprojects {
     group = 'com.spacerace'
     version = '1.0.0'
 
     repositories {
         mavenCentral()
-        // Sonatype repositories for LibGDX snapshot and release artifacts
         maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
         maven { url 'https://oss.sonatype.org/content/repositories/releases/' }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Configuration applied to all subprojects (core, lwjgl3)
-// ---------------------------------------------------------------------------
 subprojects {
     apply plugin: 'java'
 
-    // Target Java 17 for compilation (Gradle 9 compatible syntax)
     java {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // Use UTF-8 encoding for all Java compilation tasks
     tasks.withType(JavaCompile).configureEach {
         options.encoding = 'UTF-8'
     }

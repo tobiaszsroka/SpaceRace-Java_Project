@@ -13,30 +13,23 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.spacerace.core.SpaceRaceGame;
 
 /**
- * MainMenuScreen — the first screen the player sees.
- *
- * Displays a title and a prompt to start the game.
- * Pressing SPACE transitions to the {@link GameScreen}.
+ * Main menu with title and start prompt. Press SPACE to begin.
  */
 public class MainMenuScreen implements Screen {
 
-    // ── References ────────────────────────────────────────────────────
     private final SpaceRaceGame game;
     private final SpriteBatch batch;
 
-    // ── Camera & Viewport ─────────────────────────────────────────────
     private final OrthographicCamera camera;
     private final Viewport viewport;
 
-    // ── Font for menu text ────────────────────────────────────────────
     private BitmapFont titleFont;
     private BitmapFont promptFont;
 
     public MainMenuScreen(SpaceRaceGame game) {
-        this.game  = game;
+        this.game = game;
         this.batch = game.getBatch();
 
-        // Camera centered on the virtual world
         camera = new OrthographicCamera();
         viewport = new FitViewport(SpaceRaceGame.WORLD_WIDTH, SpaceRaceGame.WORLD_HEIGHT, camera);
         camera.position.set(SpaceRaceGame.WORLD_WIDTH / 2f, SpaceRaceGame.WORLD_HEIGHT / 2f, 0);
@@ -45,8 +38,7 @@ public class MainMenuScreen implements Screen {
 
     @Override
     public void show() {
-        // Create fonts (LibGDX default bitmap font)
-        titleFont  = new BitmapFont();
+        titleFont = new BitmapFont();
         titleFont.setColor(Color.WHITE);
         titleFont.getData().setScale(3f);
 
@@ -57,60 +49,41 @@ public class MainMenuScreen implements Screen {
 
     @Override
     public void render(float delta) {
-        // ── Input ─────────────────────────────────────────────────────
         if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
             game.setScreen(new GameScreen(game));
-            dispose(); // clean up menu resources
+            dispose();
             return;
         }
 
-        // ── Clear screen ──────────────────────────────────────────────
-        ScreenUtils.clear(0.05f, 0.05f, 0.15f, 1f); // dark space blue
+        ScreenUtils.clear(0.05f, 0.05f, 0.15f, 1f);
 
-        // ── Draw ──────────────────────────────────────────────────────
         camera.update();
         batch.setProjectionMatrix(camera.combined);
-
         batch.begin();
 
-        // Title — centered horizontally, upper-third vertically
-        titleFont.draw(batch,
-                "SPACE RACE",
+        titleFont.draw(batch, "SPACE RACE",
                 SpaceRaceGame.WORLD_WIDTH / 2f - 150f,
                 SpaceRaceGame.WORLD_HEIGHT * 0.65f);
 
-        // Prompt — centered, lower-third
-        promptFont.draw(batch,
-                "Press SPACE to Start",
+        promptFont.draw(batch, "Press SPACE to Start",
                 SpaceRaceGame.WORLD_WIDTH / 2f - 120f,
                 SpaceRaceGame.WORLD_HEIGHT * 0.35f);
 
-        // Controls info
-        promptFont.draw(batch,
-                "Player 1: W A S D    |    Player 2: Arrow Keys",
+        promptFont.draw(batch, "Player 1: W A S D    |    Player 2: Arrow Keys",
                 SpaceRaceGame.WORLD_WIDTH / 2f - 250f,
                 SpaceRaceGame.WORLD_HEIGHT * 0.20f);
 
         batch.end();
     }
 
-    @Override
-    public void resize(int width, int height) {
-        viewport.update(width, height);
-    }
-
-    @Override
-    public void pause() { }
-
-    @Override
-    public void resume() { }
-
-    @Override
-    public void hide() { }
+    @Override public void resize(int width, int height) { viewport.update(width, height); }
+    @Override public void pause() { }
+    @Override public void resume() { }
+    @Override public void hide() { }
 
     @Override
     public void dispose() {
-        if (titleFont  != null) titleFont.dispose();
+        if (titleFont != null) titleFont.dispose();
         if (promptFont != null) promptFont.dispose();
     }
 }
