@@ -7,8 +7,7 @@ import com.badlogic.gdx.math.Vector2;
 
 /**
  * Top-down arcade car with state machine: DRIVING → FALLING → RESPAWNING → DRIVING.
- * Position represents the center of the car.
- * Rotation is in degrees CCW from positive X axis (90° = facing up).
+ * Position = center of car. Rotation = degrees CCW from +X (90° = up).
  */
 public class Car {
 
@@ -17,13 +16,13 @@ public class Car {
     private float speed;
     private final Vector2 velocity;
 
-    private static final float MAX_SPEED = 300f;
-    private static final float MAX_REVERSE = 100f;
-    private static final float ACCELERATION = 200f;
-    private static final float BRAKE_FORCE = 300f;
-    private static final float FRICTION = 0.98f;
-    private static final float TURN_SPEED = 180f;
-    private static final float MIN_TURN_SPEED_FACTOR = 0.15f;
+    private static final float MAX_SPEED = 350f;
+    private static final float MAX_REVERSE = 150f;
+    private static final float ACCELERATION = 600f;
+    private static final float BRAKE_FORCE = 500f;
+    private static final float FRICTION = 0.97f;
+    private static final float TURN_SPEED = 260f;
+    private static final float MIN_TURN_SPEED_FACTOR = 0.25f;
 
     public static final float WIDTH = 30f;
     public static final float HEIGHT = 50f;
@@ -44,14 +43,23 @@ public class Car {
     private float fallingSpinSpeed;
 
     private final Vector2 spawnPoint;
+    private float spawnRotation;
 
-    public Car(float x, float y, Color color) {
+    private int currentCheckpoint;
+    private int lapsCompleted;
+
+    public Car(float x, float y, float rotation, Color color) {
         this.position = new Vector2(x, y);
         this.spawnPoint = new Vector2(x, y);
-        this.rotation = 90f;
+        this.rotation = rotation;
+        this.spawnRotation = rotation;
         this.speed = 0f;
         this.velocity = new Vector2();
         this.color = color;
+    }
+
+    public Car(float x, float y, Color color) {
+        this(x, y, 90f, color);
     }
 
     public void setAccelerating(boolean value) { this.accelerating = value; }
@@ -61,15 +69,9 @@ public class Car {
 
     public void update(float delta) {
         switch (state) {
-            case DRIVING:
-                updateDriving(delta);
-                break;
-            case FALLING:
-                updateFalling(delta);
-                break;
-            case RESPAWNING:
-                updateRespawning(delta);
-                break;
+            case DRIVING:  updateDriving(delta); break;
+            case FALLING:  updateFalling(delta); break;
+            case RESPAWNING: updateRespawning(delta); break;
         }
     }
 
@@ -99,7 +101,6 @@ public class Car {
     private void updateFalling(float delta) {
         stateTimer += delta;
         float progress = Math.min(stateTimer / FALL_DURATION, 1f);
-
         fallingScale = 1f - progress;
         rotation += fallingSpinSpeed * delta;
 
@@ -111,10 +112,9 @@ public class Car {
 
     private void updateRespawning(float delta) {
         stateTimer += delta;
-
         if (stateTimer >= RESPAWN_DURATION) {
             position.set(spawnPoint);
-            rotation = 90f;
+            rotation = spawnRotation;
             speed = 0f;
             fallingScale = 1f;
             state = PlayerState.DRIVING;
@@ -142,12 +142,9 @@ public class Car {
         float h = HEIGHT * scale;
 
         renderer.begin(ShapeRenderer.ShapeType.Filled);
-
-        if (state == PlayerState.FALLING) {
-            renderer.setColor(color.r, color.g, color.b, Math.max(fallingScale, 0.2f));
-        } else {
-            renderer.setColor(color);
-        }
+        renderer.setColor(state == PlayerState.FALLING
+                ? new Color(color.r, color.g, color.b, Math.max(fallingScale, 0.2f))
+                : color);
 
         renderer.identity();
         renderer.translate(position.x, position.y, 0);
@@ -156,11 +153,7 @@ public class Car {
 
         if (scale > 0.3f) {
             renderer.setColor(Color.WHITE);
-            renderer.triangle(
-                    -w / 2f, h / 2f,
-                     w / 2f, h / 2f,
-                     0f, h / 2f + 10f * scale
-            );
+            renderer.triangle(-w / 2f, h / 2f, w / 2f, h / 2f, 0f, h / 2f + 10f * scale);
         }
 
         renderer.identity();
@@ -168,14 +161,14 @@ public class Car {
     }
 
     private void renderRespawnGhost(ShapeRenderer renderer) {
-        float blinkRate = 4f;
-        boolean visible = ((int) (stateTimer * blinkRate * 2)) % 2 == 0;
+        boolean visible = ((int) (stateTimer * 8f)) % 2 == 0;
         if (!visible) return;
 
         renderer.begin(ShapeRenderer.ShapeType.Filled);
         renderer.setColor(color.r, color.g, color.b, 0.4f);
         renderer.identity();
         renderer.translate(spawnPoint.x, spawnPoint.y, 0);
+        renderer.rotate(0, 0, 1, spawnRotation - 90f);
         renderer.rect(-WIDTH / 2f, -HEIGHT / 2f, WIDTH, HEIGHT);
         renderer.identity();
         renderer.end();
@@ -189,8 +182,20 @@ public class Car {
     public PlayerState getState() { return state; }
     public boolean isDriving() { return state == PlayerState.DRIVING; }
 
-    public void setSpawnPoint(float x, float y) {
+    public int getCurrentCheckpoint() { return currentCheckpoint; }
+    public int getLapsCompleted() { return lapsCompleted; }
+
+    public void advanceCheckpoint(int totalCheckpoints) {
+        currentCheckpoint++;
+        if (currentCheckpoint >= totalCheckpoints) {
+            currentCheckpoint = 0;
+            lapsCompleted++;
+        }
+    }
+
+    public void setSpawnPoint(float x, float y, float rotation) {
         spawnPoint.set(x, y);
+        spawnRotation = rotation;
     }
 
     public void clampToTrack(float trackWidth, float trackHeight) {

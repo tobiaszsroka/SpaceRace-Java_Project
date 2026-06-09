@@ -136,8 +136,8 @@
 </data>
  </layer>
  <objectgroup id="4" name="objects">
-  <object id="1" name="spawn_p1" x="896" y="128" width="32" height="32"/>
-  <object id="2" name="spawn_p2" x="960" y="128" width="32" height="32"/>
+  <object id="1" name="spawn_p1" x="896" y="992" width="32" height="32"><properties><property name="rotation" type="float" value="0"/></properties></object>
+  <object id="2" name="spawn_p2" x="960" y="992" width="32" height="32"><properties><property name="rotation" type="float" value="0"/></properties></object>
   <object id="3" name="checkpoint_0" x="896" y="96" width="128" height="32"/>
   <object id="4" name="checkpoint_1" x="1760" y="576" width="32" height="128"/>
   <object id="5" name="checkpoint_2" x="896" y="1152" width="128" height="32"/>
