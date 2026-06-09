@@ -14,6 +14,7 @@ import com.spacerace.core.SpaceRaceGame;
 import com.spacerace.core.entities.Car;
 import com.spacerace.core.track.RaceManager;
 import com.spacerace.core.track.TrackMap;
+import com.spacerace.core.ui.GameHUD;
 import com.spacerace.core.ui.PauseOverlay;
 
 public class GameScreen implements Screen {
@@ -27,13 +28,13 @@ public class GameScreen implements Screen {
     private OrthographicCamera cameraP2;
 
     private ShapeRenderer shapeRenderer;
-    private BitmapFont labelFont;
     private BitmapFont bigFont;
 
     private TrackMap trackMap;
     private Car player1;
     private Car player2;
     private RaceManager raceManager;
+    private GameHUD hud;
 
     private boolean paused;
     private PauseOverlay pauseOverlay;
@@ -55,13 +56,11 @@ public class GameScreen implements Screen {
         cameraP2 = new OrthographicCamera(SpaceRaceGame.WORLD_WIDTH, SpaceRaceGame.WORLD_HEIGHT);
         shapeRenderer = new ShapeRenderer();
 
-        labelFont = new BitmapFont();
-        labelFont.getData().setScale(1.2f);
-
         bigFont = new BitmapFont();
         bigFont.getData().setScale(3f);
 
         pauseOverlay = new PauseOverlay();
+        hud = new GameHUD();
         trackMap = new TrackMap(mapPath);
 
         Vector2 spawnP1 = trackMap.getSpawnPoint("spawn_p1");
@@ -78,6 +77,11 @@ public class GameScreen implements Screen {
     @Override
     public void render(float delta) {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            if (raceManager.isRaceFinished()) {
+                game.setScreen(new MainMenuScreen(game));
+                dispose();
+                return;
+            }
             paused = !paused;
         }
         if (paused && Gdx.input.isKeyJustPressed(Input.Keys.Q)) {
@@ -95,6 +99,7 @@ public class GameScreen implements Screen {
             player1.clampToTrack(trackMap.getWidthPx(), trackMap.getHeightPx());
             player2.clampToTrack(trackMap.getWidthPx(), trackMap.getHeightPx());
             raceManager.update(player1, player2);
+            hud.update(delta);
         }
 
         updateCamera(cameraP1, player1);
@@ -119,7 +124,9 @@ public class GameScreen implements Screen {
 
     private void checkTrackBounds(Car car) {
         if (!car.isDriving()) return;
-        if (!trackMap.isOnTrack(car.getX(), car.getY())) {
+        if (trackMap.isOnTrack(car.getX(), car.getY())) {
+            car.updateSafePosition();
+        } else {
             car.startFalling();
         }
     }
@@ -136,61 +143,27 @@ public class GameScreen implements Screen {
         player1.render(shapeRenderer);
         player2.render(shapeRenderer);
 
-        renderHUD(label, color, width, height, owner);
+        hud.render(batch, width, height, label, color, owner, totalLaps);
 
         Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
     }
 
     private void handleInput() {
-        if (player1.isDriving()) {
-            player1.setAccelerating(Gdx.input.isKeyPressed(Input.Keys.W));
-            player1.setBraking(Gdx.input.isKeyPressed(Input.Keys.S));
-            player1.setTurningLeft(Gdx.input.isKeyPressed(Input.Keys.A));
-            player1.setTurningRight(Gdx.input.isKeyPressed(Input.Keys.D));
-        } else {
-            player1.setAccelerating(false);
-            player1.setBraking(false);
-            player1.setTurningLeft(false);
-            player1.setTurningRight(false);
-        }
+        applyInput(player1, Input.Keys.W, Input.Keys.S, Input.Keys.A, Input.Keys.D);
+        applyInput(player2, Input.Keys.UP, Input.Keys.DOWN, Input.Keys.LEFT, Input.Keys.RIGHT);
+    }
 
-        if (player2.isDriving()) {
-            player2.setAccelerating(Gdx.input.isKeyPressed(Input.Keys.UP));
-            player2.setBraking(Gdx.input.isKeyPressed(Input.Keys.DOWN));
-            player2.setTurningLeft(Gdx.input.isKeyPressed(Input.Keys.LEFT));
-            player2.setTurningRight(Gdx.input.isKeyPressed(Input.Keys.RIGHT));
-        } else {
-            player2.setAccelerating(false);
-            player2.setBraking(false);
-            player2.setTurningLeft(false);
-            player2.setTurningRight(false);
-        }
+    private void applyInput(Car car, int gas, int brake, int left, int right) {
+        boolean driving = car.isDriving();
+        car.setAccelerating(driving && Gdx.input.isKeyPressed(gas));
+        car.setBraking(driving && Gdx.input.isKeyPressed(brake));
+        car.setTurningLeft(driving && Gdx.input.isKeyPressed(left));
+        car.setTurningRight(driving && Gdx.input.isKeyPressed(right));
     }
 
     private void updateCamera(OrthographicCamera camera, Car car) {
         camera.position.set(car.getX(), car.getY(), 0);
         camera.update();
-    }
-
-    private void renderHUD(String label, Color color, int vpW, int vpH, Car car) {
-        OrthographicCamera hudCamera = new OrthographicCamera(vpW, vpH);
-        hudCamera.position.set(vpW / 2f, vpH / 2f, 0);
-        hudCamera.update();
-
-        batch.setProjectionMatrix(hudCamera.combined);
-        batch.begin();
-        labelFont.setColor(color);
-
-        String lapText = "Lap " + (car.getLapsCompleted() + 1) + "/" + totalLaps;
-        String speedText = "Speed: " + (int) Math.abs(car.getSpeed());
-        labelFont.draw(batch, label + "  " + lapText + "  " + speedText, 10f, vpH - 10f);
-
-        if (!car.isDriving()) {
-            labelFont.setColor(Color.RED);
-            labelFont.draw(batch, car.getState().name(), 10f, vpH - 30f);
-        }
-
-        batch.end();
     }
 
     private void renderFinishOverlay(int screenWidth, int screenHeight) {
@@ -209,14 +182,25 @@ public class GameScreen implements Screen {
 
         Car winner = raceManager.getWinner();
         String winnerName = (winner == player1) ? "PLAYER 1" : "PLAYER 2";
+        String timeText = "Time: " + formatTime(hud.getRaceTimer());
 
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
         bigFont.setColor(winner.getColor());
-        bigFont.draw(batch, winnerName + " WINS!", screenWidth / 2f - 180f, screenHeight / 2f + 40f);
-        labelFont.setColor(Color.LIGHT_GRAY);
-        labelFont.draw(batch, "ESC - Back to Menu", screenWidth / 2f - 100f, screenHeight / 2f - 40f);
+        bigFont.draw(batch, winnerName + " WINS!", screenWidth / 2f - 180f, screenHeight / 2f + 60f);
+        bigFont.setColor(Color.WHITE);
+        bigFont.draw(batch, timeText, screenWidth / 2f - 140f, screenHeight / 2f);
+        BitmapFont smallFont = hud.getFont();
+        smallFont.setColor(Color.LIGHT_GRAY);
+        smallFont.draw(batch, "ESC - Back to Menu", screenWidth / 2f - 80f, screenHeight / 2f - 60f);
         batch.end();
+    }
+
+    private String formatTime(float seconds) {
+        int mins = (int) (seconds / 60);
+        int secs = (int) (seconds % 60);
+        int millis = (int) ((seconds * 100) % 100);
+        return String.format("%d:%02d.%02d", mins, secs, millis);
     }
 
     private void drawDivider(int screenWidth, int screenHeight, int halfWidth) {
@@ -239,9 +223,9 @@ public class GameScreen implements Screen {
     @Override
     public void dispose() {
         if (shapeRenderer != null) shapeRenderer.dispose();
-        if (labelFont != null) labelFont.dispose();
         if (bigFont != null) bigFont.dispose();
         if (trackMap != null) trackMap.dispose();
         if (pauseOverlay != null) pauseOverlay.dispose();
+        if (hud != null) hud.dispose();
     }
 }

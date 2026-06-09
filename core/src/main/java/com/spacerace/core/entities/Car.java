@@ -44,6 +44,8 @@ public class Car {
 
     private final Vector2 spawnPoint;
     private float spawnRotation;
+    private final Vector2 lastSafePosition;
+    private float lastSafeRotation;
 
     private int currentCheckpoint;
     private int lapsCompleted;
@@ -51,8 +53,10 @@ public class Car {
     public Car(float x, float y, float rotation, Color color) {
         this.position = new Vector2(x, y);
         this.spawnPoint = new Vector2(x, y);
+        this.lastSafePosition = new Vector2(x, y);
         this.rotation = rotation;
         this.spawnRotation = rotation;
+        this.lastSafeRotation = rotation;
         this.speed = 0f;
         this.velocity = new Vector2();
         this.color = color;
@@ -113,8 +117,8 @@ public class Car {
     private void updateRespawning(float delta) {
         stateTimer += delta;
         if (stateTimer >= RESPAWN_DURATION) {
-            position.set(spawnPoint);
-            rotation = spawnRotation;
+            position.set(lastSafePosition);
+            rotation = lastSafeRotation;
             speed = 0f;
             fallingScale = 1f;
             state = PlayerState.DRIVING;
@@ -167,8 +171,8 @@ public class Car {
         renderer.begin(ShapeRenderer.ShapeType.Filled);
         renderer.setColor(color.r, color.g, color.b, 0.4f);
         renderer.identity();
-        renderer.translate(spawnPoint.x, spawnPoint.y, 0);
-        renderer.rotate(0, 0, 1, spawnRotation - 90f);
+        renderer.translate(lastSafePosition.x, lastSafePosition.y, 0);
+        renderer.rotate(0, 0, 1, lastSafeRotation - 90f);
         renderer.rect(-WIDTH / 2f, -HEIGHT / 2f, WIDTH, HEIGHT);
         renderer.identity();
         renderer.end();
@@ -196,6 +200,11 @@ public class Car {
     public void setSpawnPoint(float x, float y, float rotation) {
         spawnPoint.set(x, y);
         spawnRotation = rotation;
+    }
+
+    public void updateSafePosition() {
+        lastSafePosition.set(position);
+        lastSafeRotation = rotation;
     }
 
     public void clampToTrack(float trackWidth, float trackHeight) {
