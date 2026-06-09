@@ -12,64 +12,90 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.spacerace.core.SpaceRaceGame;
 import com.spacerace.core.entities.Car;
+import com.spacerace.core.track.RaceManager;
 import com.spacerace.core.track.TrackMap;
+import com.spacerace.core.ui.PauseOverlay;
 
 public class GameScreen implements Screen {
 
     private final SpaceRaceGame game;
     private final SpriteBatch batch;
     private final String mapPath;
+    private final int totalLaps;
 
     private OrthographicCamera cameraP1;
     private OrthographicCamera cameraP2;
 
     private ShapeRenderer shapeRenderer;
     private BitmapFont labelFont;
+    private BitmapFont bigFont;
 
     private TrackMap trackMap;
     private Car player1;
     private Car player2;
+    private RaceManager raceManager;
 
-    public GameScreen(SpaceRaceGame game, String mapPath) {
+    private boolean paused;
+    private PauseOverlay pauseOverlay;
+
+    public GameScreen(SpaceRaceGame game, String mapPath, int totalLaps) {
         this.game = game;
         this.batch = game.getBatch();
         this.mapPath = mapPath;
+        this.totalLaps = totalLaps;
     }
 
     public GameScreen(SpaceRaceGame game) {
-        this(game, "maps/track_placeholder.tmx");
+        this(game, "maps/track_placeholder.tmx", 3);
     }
 
     @Override
     public void show() {
-        cameraP1 = new OrthographicCamera();
-        cameraP2 = new OrthographicCamera();
+        cameraP1 = new OrthographicCamera(SpaceRaceGame.WORLD_WIDTH, SpaceRaceGame.WORLD_HEIGHT);
+        cameraP2 = new OrthographicCamera(SpaceRaceGame.WORLD_WIDTH, SpaceRaceGame.WORLD_HEIGHT);
         shapeRenderer = new ShapeRenderer();
 
         labelFont = new BitmapFont();
-        labelFont.setColor(Color.WHITE);
         labelFont.getData().setScale(1.2f);
 
+        bigFont = new BitmapFont();
+        bigFont.getData().setScale(3f);
+
+        pauseOverlay = new PauseOverlay();
         trackMap = new TrackMap(mapPath);
 
         Vector2 spawnP1 = trackMap.getSpawnPoint("spawn_p1");
         Vector2 spawnP2 = trackMap.getSpawnPoint("spawn_p2");
-        player1 = new Car(spawnP1.x, spawnP1.y, Color.CYAN);
-        player2 = new Car(spawnP2.x, spawnP2.y, Color.ORANGE);
+        float rotP1 = trackMap.getSpawnRotation("spawn_p1");
+        float rotP2 = trackMap.getSpawnRotation("spawn_p2");
+
+        player1 = new Car(spawnP1.x, spawnP1.y, rotP1, Color.CYAN);
+        player2 = new Car(spawnP2.x, spawnP2.y, rotP2, Color.ORANGE);
+
+        raceManager = new RaceManager(trackMap.getCheckpoints(), totalLaps);
     }
 
     @Override
     public void render(float delta) {
-        handleInput();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            paused = !paused;
+        }
+        if (paused && Gdx.input.isKeyJustPressed(Input.Keys.Q)) {
+            game.setScreen(new MainMenuScreen(game));
+            dispose();
+            return;
+        }
 
-        player1.update(delta);
-        player2.update(delta);
-
-        checkTrackBounds(player1);
-        checkTrackBounds(player2);
-
-        player1.clampToTrack(trackMap.getWidthPx(), trackMap.getHeightPx());
-        player2.clampToTrack(trackMap.getWidthPx(), trackMap.getHeightPx());
+        if (!paused && !raceManager.isRaceFinished()) {
+            handleInput();
+            player1.update(delta);
+            player2.update(delta);
+            checkTrackBounds(player1);
+            checkTrackBounds(player2);
+            player1.clampToTrack(trackMap.getWidthPx(), trackMap.getHeightPx());
+            player2.clampToTrack(trackMap.getWidthPx(), trackMap.getHeightPx());
+            raceManager.update(player1, player2);
+        }
 
         updateCamera(cameraP1, player1);
         updateCamera(cameraP2, player2);
@@ -87,10 +113,8 @@ public class GameScreen implements Screen {
         Gdx.gl.glViewport(0, 0, screenWidth, screenHeight);
         drawDivider(screenWidth, screenHeight, halfWidth);
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            game.setScreen(new MainMenuScreen(game));
-            dispose();
-        }
+        if (paused) pauseOverlay.render(batch);
+        if (raceManager.isRaceFinished()) renderFinishOverlay(screenWidth, screenHeight);
     }
 
     private void checkTrackBounds(Car car) {
@@ -157,13 +181,41 @@ public class GameScreen implements Screen {
         batch.begin();
         labelFont.setColor(color);
 
-        String statusText = label;
-        if (!car.isDriving()) {
-            statusText += "  " + car.getState().name();
-        }
-        statusText += "  [ESC = Menu]";
-        labelFont.draw(batch, statusText, 10f, vpH - 10f);
+        String lapText = "Lap " + (car.getLapsCompleted() + 1) + "/" + totalLaps;
+        String speedText = "Speed: " + (int) Math.abs(car.getSpeed());
+        labelFont.draw(batch, label + "  " + lapText + "  " + speedText, 10f, vpH - 10f);
 
+        if (!car.isDriving()) {
+            labelFont.setColor(Color.RED);
+            labelFont.draw(batch, car.getState().name(), 10f, vpH - 30f);
+        }
+
+        batch.end();
+    }
+
+    private void renderFinishOverlay(int screenWidth, int screenHeight) {
+        OrthographicCamera camera = new OrthographicCamera(screenWidth, screenHeight);
+        camera.position.set(screenWidth / 2f, screenHeight / 2f, 0);
+        camera.update();
+
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0f, 0f, 0f, 0.6f);
+        shapeRenderer.rect(0, 0, screenWidth, screenHeight);
+        shapeRenderer.end();
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+
+        Car winner = raceManager.getWinner();
+        String winnerName = (winner == player1) ? "PLAYER 1" : "PLAYER 2";
+
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+        bigFont.setColor(winner.getColor());
+        bigFont.draw(batch, winnerName + " WINS!", screenWidth / 2f - 180f, screenHeight / 2f + 40f);
+        labelFont.setColor(Color.LIGHT_GRAY);
+        labelFont.draw(batch, "ESC - Back to Menu", screenWidth / 2f - 100f, screenHeight / 2f - 40f);
         batch.end();
     }
 
@@ -188,6 +240,8 @@ public class GameScreen implements Screen {
     public void dispose() {
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (labelFont != null) labelFont.dispose();
+        if (bigFont != null) bigFont.dispose();
         if (trackMap != null) trackMap.dispose();
+        if (pauseOverlay != null) pauseOverlay.dispose();
     }
 }
