@@ -26,6 +26,7 @@ public class AudioManager {
     private Sound fallSound;
     private Sound victoryFanfare;
     private Sound engineLoop;
+    private Sound pickupSound;
 
     // ── Engine loop instance IDs (one per car) ──────────────────────────
     private long engineLoopId1 = -1;
@@ -108,6 +109,13 @@ public class AudioManager {
         } catch (Exception e) {
             System.err.println("[AudioManager] Could not load victory_fanfare.wav: " + e.getMessage());
             victoryFanfare = null;
+        }
+
+        try {
+            pickupSound = Gdx.audio.newSound(Gdx.files.internal("audio/pickup_sound.wav"));
+        } catch (Exception e) {
+            System.err.println("[AudioManager] Could not load pickup_sound.wav: " + e.getMessage());
+            pickupSound = null;
         }
     }
 
@@ -196,6 +204,17 @@ public class AudioManager {
         }
     }
 
+    /** Plays the pickup sound once. */
+    public void playPickupSound() {
+        try {
+            if (pickupSound != null) {
+                pickupSound.play(SFX_VOLUME);
+            }
+        } catch (Exception e) {
+            System.err.println("[AudioManager] Error playing pickup sound: " + e.getMessage());
+        }
+    }
+
     // ── Engine loop (two independent instances) ─────────────────────────
 
     /**
@@ -276,6 +295,7 @@ public class AudioManager {
         try { if (countdownBeep  != null) countdownBeep.dispose();  } catch (Exception e) { /* ignore */ }
         try { if (fallSound      != null) fallSound.dispose();      } catch (Exception e) { /* ignore */ }
         try { if (victoryFanfare != null) victoryFanfare.dispose(); } catch (Exception e) { /* ignore */ }
+        try { if (pickupSound    != null) pickupSound.dispose();    } catch (Exception e) { /* ignore */ }
         try { if (engineLoop     != null) engineLoop.dispose();     } catch (Exception e) { /* ignore */ }
 
         menuMusic      = null;
@@ -283,6 +303,7 @@ public class AudioManager {
         countdownBeep  = null;
         fallSound      = null;
         victoryFanfare = null;
+        pickupSound    = null;
         engineLoop     = null;
 
         instance = null;

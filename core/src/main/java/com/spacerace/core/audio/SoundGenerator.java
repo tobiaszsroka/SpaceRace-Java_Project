@@ -39,6 +39,7 @@ public class SoundGenerator {
         generateIfMissing(dir, "countdown_beep.wav",   SoundGenerator::generateCountdownBeep);
         generateIfMissing(dir, "fall_sound.wav",       SoundGenerator::generateFallSound);
         generateIfMissing(dir, "victory_fanfare.wav",  SoundGenerator::generateVictoryFanfare);
+        generateIfMissing(dir, "pickup_sound.wav",     SoundGenerator::generatePickupSound);
 
         System.out.println("[SoundGenerator] All audio files ready.");
     }
@@ -516,6 +517,24 @@ public class SoundGenerator {
                                           new double[]{0.28,  0.22,  0.17,  0.12,  0.08});
 
         return normalize(buf, 0.90);
+    }
+
+    /**
+     * Pickup sound — ~0.25 s high-pitched "bli-ping!"
+     */
+    private static short[] generatePickupSound() {
+        int totalSamples = (int) (0.25 * SAMPLE_RATE);
+        double[] buf = new double[totalSamples];
+        
+        for (int i = 0; i < totalSamples; i++) {
+            double t = (double) i / SAMPLE_RATE;
+            // Sweep frequency up very fast
+            double freq = 800.0 + 2000.0 * (t / 0.25);
+            double envelope = (1.0 - (t / 0.25)); // quick fade out
+            buf[i] = Math.sin(TWO_PI * freq * t) * envelope * 0.4;
+        }
+        
+        return normalize(buf, 0.85);
     }
 
     /* ------------------------------------------------------------------ */

@@ -57,6 +57,10 @@ public class Car {
     private final Vector2 collisionVelocity = new Vector2();
     private float collisionSpin = 0f;
 
+    // Power-up timers
+    private float nitroTimer = 0f;
+    private float shieldTimer = 0f;
+
     public Car(float x, float y, float rotation, Color color) {
         this.position = new Vector2(x, y);
         this.spawnPoint = new Vector2(x, y);
@@ -79,6 +83,9 @@ public class Car {
     public void setTurningRight(boolean value) { this.turningRight = value; }
 
     public void update(float delta) {
+        if (nitroTimer > 0) nitroTimer -= delta;
+        if (shieldTimer > 0) shieldTimer -= delta;
+
         switch (state) {
             case DRIVING:  updateDriving(delta); break;
             case FALLING:  updateFalling(delta); break;
@@ -87,17 +94,20 @@ public class Car {
     }
 
     private void updateDriving(float delta) {
-        if (accelerating) speed += ACCELERATION * delta;
+        float currentMaxSpeed = (nitroTimer > 0) ? MAX_SPEED * 1.6f : MAX_SPEED;
+        float currentAccel = (nitroTimer > 0) ? ACCELERATION * 2f : ACCELERATION;
+
+        if (accelerating) speed += currentAccel * delta;
         if (braking) {
             if (speed > 0) speed -= BRAKE_FORCE * delta;
-            else speed -= ACCELERATION * 0.5f * delta;
+            else speed -= currentAccel * 0.5f * delta;
         }
 
         speed *= FRICTION;
         if (Math.abs(speed) < 1f) speed = 0f;
-        speed = MathUtils.clamp(speed, -MAX_REVERSE, MAX_SPEED);
+        speed = MathUtils.clamp(speed, -MAX_REVERSE, currentMaxSpeed);
 
-        float speedFraction = Math.abs(speed) / MAX_SPEED;
+        float speedFraction = Math.abs(speed) / currentMaxSpeed;
         float effectiveTurnRate = TURN_SPEED * Math.max(speedFraction, speed != 0 ? MIN_TURN_SPEED_FACTOR : 0);
 
         if (turningLeft) rotation += effectiveTurnRate * delta * (speed >= 0 ? 1 : -1);
@@ -186,7 +196,22 @@ public class Car {
             renderer.triangle(-w / 2f, h / 2f, w / 2f, h / 2f, 0f, h / 2f + 10f * scale);
         }
 
+        // Draw Nitro Flame
+        if (nitroTimer > 0 && state == PlayerState.DRIVING) {
+            renderer.setColor(Color.CYAN);
+            float flicker = MathUtils.random(5f, 20f);
+            renderer.triangle(-w / 4f, -h / 2f, w / 4f, -h / 2f, 0f, -h / 2f - flicker);
+        }
+
         renderer.identity();
+        
+        // Draw Shield Aura (un-rotated to stay circular)
+        if (shieldTimer > 0 && state == PlayerState.DRIVING) {
+            renderer.setColor(new Color(1f, 0.84f, 0f, 0.4f)); // Gold translucent
+            float pulse = (float) Math.sin(shieldTimer * 15f) * 3f;
+            renderer.circle(position.x, position.y, Math.max(w, h) / 2f + 8f + pulse);
+        }
+
         renderer.end();
     }
 
@@ -233,6 +258,16 @@ public class Car {
         lastSafeRotation = rotation;
     }
 
+    /** Sets the safe respawn position explicitly (used to place car at track center). */
+    public void setSafePosition(float x, float y, float rot) {
+        lastSafePosition.set(x, y);
+        lastSafeRotation = rot;
+    }
+
+    public Vector2 getLastSafePosition() {
+        return lastSafePosition;
+    }
+
     public void clampToTrack(float trackWidth, float trackHeight) {
         position.x = MathUtils.clamp(position.x, WIDTH / 2f, trackWidth - WIDTH / 2f);
         position.y = MathUtils.clamp(position.y, HEIGHT / 2f, trackHeight - HEIGHT / 2f);
@@ -265,6 +300,10 @@ public class Car {
         return poly;
     }
 
+    public void activateNitro() { nitroTimer = 3f; }
+    public void activateShield() { shieldTimer = 5f; }
+    public boolean hasShield() { return shieldTimer > 0; }
+
     /**
      * Applies a collision impulse as a smooth velocity bounce
      * plus a small rotation kick.
@@ -276,7 +315,10 @@ public class Car {
         collisionVelocity.add(pushDirection.x * pushStrength, pushDirection.y * pushStrength);
         // Rotation kick for visual realism
         collisionSpin += spinKick;
-        speed *= 0.6f; // lose some speed
+        
+        if (!hasShield()) {
+            speed *= 0.6f; // lose some speed unless shielded
+        }
     }
 
     /**
@@ -308,8 +350,20 @@ public class Car {
         // Rotation kick (faster impact = more spin)
         float spinAmount = 60f + combinedSpeed * 0.15f;
 
+        // Apply shields: if one has a shield, they bounce the other away harder and barely move themselves
+        float bounceA = bounceStrength;
+        float bounceB = bounceStrength;
+        
+        if (a.hasShield() && !b.hasShield()) {
+            bounceA *= 0.2f;
+            bounceB *= 2.0f;
+        } else if (b.hasShield() && !a.hasShield()) {
+            bounceA *= 2.0f;
+            bounceB *= 0.2f;
+        }
+
         // Apply to both cars in opposite directions
-        a.applyCollisionImpulse(new Vector2(-diff.x, -diff.y), bounceStrength, -spinAmount);
-        b.applyCollisionImpulse(new Vector2(diff.x, diff.y), bounceStrength, spinAmount);
+        a.applyCollisionImpulse(new Vector2(-diff.x, -diff.y), bounceA, -spinAmount);
+        b.applyCollisionImpulse(new Vector2(diff.x, diff.y), bounceB, spinAmount);
     }
 }

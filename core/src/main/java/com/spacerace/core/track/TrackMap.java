@@ -133,6 +133,54 @@ public class TrackMap implements Disposable {
         return checkpoints;
     }
 
+    /**
+     * Finds the nearest point that is well-centered on the track.
+     * Searches in a radius around the given world position and picks the
+     * track tile with the most surrounding track neighbors (= most centered).
+     */
+    public Vector2 findNearestTrackCenter(float worldX, float worldY) {
+        if (trackLayer == null) return new Vector2(worldX, worldY);
+
+        int startTx = (int) (worldX / tileWidth);
+        int startTy = (int) (worldY / tileHeight);
+        int searchRadius = 15;
+
+        float bestX = worldX, bestY = worldY;
+        float bestMetric = -Float.MAX_VALUE;
+
+        for (int dy = -searchRadius; dy <= searchRadius; dy++) {
+            for (int dx = -searchRadius; dx <= searchRadius; dx++) {
+                int tx = startTx + dx;
+                int ty = startTy + dy;
+                if (tx < 0 || tx >= mapWidthTiles || ty < 0 || ty >= mapHeightTiles) continue;
+                if (trackLayer.getCell(tx, ty) == null) continue;
+
+                // Score: count how many tiles in a 7x7 area around this tile are also track
+                int score = 0;
+                for (int cy = -3; cy <= 3; cy++) {
+                    for (int cx = -3; cx <= 3; cx++) {
+                        int ntx = tx + cx, nty = ty + cy;
+                        if (ntx >= 0 && ntx < mapWidthTiles && nty >= 0 && nty < mapHeightTiles) {
+                            if (trackLayer.getCell(ntx, nty) != null) score++;
+                        }
+                    }
+                }
+
+                // We want a high score (centered on track), but we MUST penalize distance heavily
+                // so we don't teleport down the track to a wider section.
+                float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                float metric = score - dist * 2.5f; // Penalize 2.5 points per tile of distance
+
+                if (metric > bestMetric) {
+                    bestMetric = metric;
+                    bestX = (tx + 0.5f) * tileWidth;
+                    bestY = (ty + 0.5f) * tileHeight;
+                }
+            }
+        }
+        return new Vector2(bestX, bestY);
+    }
+
     public float getWidthPx() { return mapWidthPx; }
     public float getHeightPx() { return mapHeightPx; }
 

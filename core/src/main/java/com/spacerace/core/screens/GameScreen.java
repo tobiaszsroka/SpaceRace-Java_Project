@@ -16,6 +16,7 @@ import com.spacerace.core.RaceConfig;
 import com.spacerace.core.SpaceRaceGame;
 import com.spacerace.core.audio.AudioManager;
 import com.spacerace.core.entities.Car;
+import com.spacerace.core.entities.PowerUpManager;
 import com.spacerace.core.track.RaceManager;
 import com.spacerace.core.track.TrackMap;
 import com.spacerace.core.ui.GameHUD;
@@ -38,6 +39,7 @@ public class GameScreen implements Screen {
     private Car player2;
     private RaceManager raceManager;
     private GameHUD hud;
+    private PowerUpManager powerUpManager;
 
     private boolean paused;
     private PauseOverlay pauseOverlay;
@@ -79,6 +81,7 @@ public class GameScreen implements Screen {
 
         debugCheckpoints = trackMap.getCheckpoints();
         raceManager = new RaceManager(debugCheckpoints, config.totalLaps);
+        powerUpManager = new PowerUpManager(trackMap);
 
         AudioManager.getInstance().playRaceMusic();
     }
@@ -132,6 +135,7 @@ public class GameScreen implements Screen {
             player1.clampToTrack(trackMap.getWidthPx(), trackMap.getHeightPx());
             player2.clampToTrack(trackMap.getWidthPx(), trackMap.getHeightPx());
             raceManager.update(player1, player2);
+            powerUpManager.update(delta, player1, player2);
             hud.update(delta);
 
             // Update engine sound pitch based on car speeds
@@ -173,6 +177,11 @@ public class GameScreen implements Screen {
         if (trackMap.isOnTrack(car.getX(), car.getY())) {
             car.updateSafePosition();
         } else {
+            // Find the nearest center of the road for respawn, starting from the edge where they fell off
+            // (using lastSafePosition instead of current out-of-bounds position)
+            Vector2 safeEdge = car.getLastSafePosition();
+            Vector2 center = trackMap.findNearestTrackCenter(safeEdge.x, safeEdge.y);
+            car.setSafePosition(center.x, center.y, car.getRotation());
             car.startFalling();
         }
     }
@@ -186,6 +195,7 @@ public class GameScreen implements Screen {
         trackMap.render(camera);
 
         shapeRenderer.setProjectionMatrix(camera.combined);
+        powerUpManager.render(shapeRenderer);
         player1.render(shapeRenderer);
         player2.render(shapeRenderer);
 
