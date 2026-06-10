@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
+import com.spacerace.core.RaceConfig;
 import com.spacerace.core.SpaceRaceGame;
 import com.spacerace.core.audio.AudioManager;
 import com.spacerace.core.entities.Car;
@@ -24,8 +25,7 @@ public class GameScreen implements Screen {
 
     private final SpaceRaceGame game;
     private final SpriteBatch batch;
-    private final String mapPath;
-    private final int totalLaps;
+    private final RaceConfig config;
 
     private OrthographicCamera cameraP1;
     private OrthographicCamera cameraP2;
@@ -50,15 +50,10 @@ public class GameScreen implements Screen {
     private int lastCountdownPhase = -1; // track display phase for beep sync
     private boolean raceFinishSoundPlayed = false;
 
-    public GameScreen(SpaceRaceGame game, String mapPath, int totalLaps) {
+    public GameScreen(SpaceRaceGame game, RaceConfig config) {
         this.game = game;
         this.batch = game.getBatch();
-        this.mapPath = mapPath;
-        this.totalLaps = totalLaps;
-    }
-
-    public GameScreen(SpaceRaceGame game) {
-        this(game, "maps/track_placeholder.tmx", 3);
+        this.config = config;
     }
 
     @Override
@@ -72,18 +67,18 @@ public class GameScreen implements Screen {
 
         pauseOverlay = new PauseOverlay();
         hud = new GameHUD();
-        trackMap = new TrackMap(mapPath);
+        trackMap = new TrackMap(config.getMapPath());
 
         Vector2 spawnP1 = trackMap.getSpawnPoint("spawn_p1");
         Vector2 spawnP2 = trackMap.getSpawnPoint("spawn_p2");
         float rotP1 = trackMap.getSpawnRotation("spawn_p1");
         float rotP2 = trackMap.getSpawnRotation("spawn_p2");
 
-        player1 = new Car(spawnP1.x, spawnP1.y, rotP1, Color.CYAN);
-        player2 = new Car(spawnP2.x, spawnP2.y, rotP2, Color.ORANGE);
+        player1 = new Car(spawnP1.x, spawnP1.y, rotP1, config.carP1.color);
+        player2 = new Car(spawnP2.x, spawnP2.y, rotP2, config.carP2.color);
 
         debugCheckpoints = trackMap.getCheckpoints();
-        raceManager = new RaceManager(debugCheckpoints, totalLaps);
+        raceManager = new RaceManager(debugCheckpoints, config.totalLaps);
 
         AudioManager.getInstance().playRaceMusic();
     }
@@ -162,8 +157,8 @@ public class GameScreen implements Screen {
         Gdx.gl.glClearColor(0.02f, 0.02f, 0.08f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        renderViewport(cameraP1, 0, halfWidth, screenHeight, "P1", Color.CYAN, player1);
-        renderViewport(cameraP2, halfWidth, halfWidth, screenHeight, "P2", Color.ORANGE, player2);
+        renderViewport(cameraP1, 0, halfWidth, screenHeight, "P1", config.carP1.color, player1);
+        renderViewport(cameraP2, halfWidth, halfWidth, screenHeight, "P2", config.carP2.color, player2);
 
         Gdx.gl.glViewport(0, 0, screenWidth, screenHeight);
         drawDivider(screenWidth, screenHeight, halfWidth);
@@ -196,33 +191,31 @@ public class GameScreen implements Screen {
 
         renderStartFinishLine(camera);
 
-        hud.render(batch, width, height, label, color, owner, totalLaps);
+        hud.render(batch, width, height, label, color, owner, config.totalLaps);
 
         Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
     }
 
-    // Rysuje szachownicę (linię startu/mety)
     private void renderStartFinishLine(OrthographicCamera camera) {
+        Rectangle finish = trackMap.getFinishLine();
+        if (finish == null) return;
+
         shapeRenderer.setProjectionMatrix(camera.combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Pozycja zgrana z checkpoint_3 na x=960. Samochody są na y ~ 272 (LibGDX)
-        // Rysujemy szachownicę od y=160 do y=384
-        int startX = 960;
-        int startY = 160;
-        int height = 256;
-        int size = 16; // rozmiar pojedynczej kratki
+        int size = 16;
+        float x = finish.x;
+        float y = finish.y;
+        float w = finish.width;
+        float h = finish.height;
 
-        for (int y = startY; y < startY + height; y += size) {
-            for (int x = startX; x < startX + 32; x += size) {
-                // Szachownica: na przemian czarny i biały
-                boolean isWhite = ((x - startX) / size + (y - startY) / size) % 2 == 0;
-                if (isWhite) {
-                    shapeRenderer.setColor(Color.WHITE);
-                } else {
-                    shapeRenderer.setColor(Color.BLACK);
-                }
-                shapeRenderer.rect(x, y, size, size);
+        for (float py = y; py < y + h; py += size) {
+            for (float px = x; px < x + w; px += size) {
+                float tileW = Math.min(size, x + w - px);
+                float tileH = Math.min(size, y + h - py);
+                boolean isWhite = ((int) ((px - x) / size) + (int) ((py - y) / size)) % 2 == 0;
+                shapeRenderer.setColor(isWhite ? Color.WHITE : Color.BLACK);
+                shapeRenderer.rect(px, py, tileW, tileH);
             }
         }
         shapeRenderer.end();

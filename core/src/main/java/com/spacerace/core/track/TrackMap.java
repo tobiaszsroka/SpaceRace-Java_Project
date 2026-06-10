@@ -101,6 +101,18 @@ public class TrackMap implements Disposable {
         return 90f;
     }
 
+    public Rectangle getFinishLine() {
+        MapLayer objects = map.getLayers().get("objects");
+        if (objects == null) return null;
+
+        for (MapObject obj : objects.getObjects()) {
+            if ("finish_line".equals(obj.getName()) && obj instanceof RectangleMapObject) {
+                return ((RectangleMapObject) obj).getRectangle();
+            }
+        }
+        return null;
+    }
+
     public Array<Rectangle> getCheckpoints() {
         Array<Rectangle> checkpoints = new Array<>();
         MapLayer objects = map.getLayers().get("objects");
