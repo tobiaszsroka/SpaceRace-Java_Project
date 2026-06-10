@@ -11,6 +11,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.spacerace.core.SpaceRaceGame;
+import com.spacerace.core.audio.AudioManager;
 
 /**
  * Main menu with title and start prompt. Press SPACE to begin.
@@ -45,6 +46,8 @@ public class MainMenuScreen implements Screen {
         promptFont = new BitmapFont();
         promptFont.setColor(Color.LIGHT_GRAY);
         promptFont.getData().setScale(1.5f);
+
+        AudioManager.getInstance().playMenuMusic();
     }
 
     @Override
@@ -83,6 +86,7 @@ public class MainMenuScreen implements Screen {
 
     @Override
     public void dispose() {
+        AudioManager.getInstance().stopMenuMusic();
         if (titleFont != null) titleFont.dispose();
         if (promptFont != null) promptFont.dispose();
     }
