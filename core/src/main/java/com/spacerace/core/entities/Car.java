@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
+import com.spacerace.core.audio.AudioManager;
 
 /**
  * Top-down arcade car with state machine: DRIVING → FALLING → RESPAWNING → DRIVING.
@@ -133,6 +134,7 @@ public class Car {
         fallingScale = 1f;
         fallingSpinSpeed = 360f + MathUtils.random(180f);
         speed = 0f;
+        AudioManager.getInstance().playFallSound();
     }
 
     public void render(ShapeRenderer renderer) {

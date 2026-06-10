@@ -13,6 +13,7 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.spacerace.core.SpaceRaceGame;
+import com.spacerace.core.audio.AudioManager;
 import com.spacerace.core.entities.Car;
 import com.spacerace.core.track.RaceManager;
 import com.spacerace.core.track.TrackMap;
@@ -41,8 +42,13 @@ public class GameScreen implements Screen {
     private boolean paused;
     private PauseOverlay pauseOverlay;
 
-    // DEBUG: lista checkpointów do rysowania na ekranie
     private Array<Rectangle> debugCheckpoints;
+
+    // Countdown before race starts
+    private float countdownTimer = 4f; // 3..2..1..START!
+    private boolean countdownFinished = false;
+    private int lastCountdownPhase = -1; // track display phase for beep sync
+    private boolean raceFinishSoundPlayed = false;
 
     public GameScreen(SpaceRaceGame game, String mapPath, int totalLaps) {
         this.game = game;
@@ -78,6 +84,8 @@ public class GameScreen implements Screen {
 
         debugCheckpoints = trackMap.getCheckpoints();
         raceManager = new RaceManager(debugCheckpoints, totalLaps);
+
+        AudioManager.getInstance().playRaceMusic();
     }
 
     @Override
@@ -96,7 +104,30 @@ public class GameScreen implements Screen {
             return;
         }
 
-        if (!paused && !raceManager.isRaceFinished()) {
+        // Countdown logic
+        if (!countdownFinished) {
+            countdownTimer -= delta;
+
+            // Determine which phase the display is in (synced with renderCountdownOverlay)
+            int displayPhase;
+            if (countdownTimer > 3f) displayPhase = 3;
+            else if (countdownTimer > 2f) displayPhase = 2;
+            else if (countdownTimer > 1f) displayPhase = 1;
+            else displayPhase = 0; // START!
+
+            // Play beep when the displayed phase changes
+            if (displayPhase != lastCountdownPhase) {
+                AudioManager.getInstance().playCountdownBeep();
+                lastCountdownPhase = displayPhase;
+            }
+
+            if (countdownTimer <= 0f) {
+                countdownFinished = true;
+                AudioManager.getInstance().startEngineSound();
+            }
+        }
+
+        if (!paused && !raceManager.isRaceFinished() && countdownFinished) {
             handleInput();
             player1.update(delta);
             player2.update(delta);
@@ -106,6 +137,18 @@ public class GameScreen implements Screen {
             player2.clampToTrack(trackMap.getWidthPx(), trackMap.getHeightPx());
             raceManager.update(player1, player2);
             hud.update(delta);
+
+            // Update engine sound pitch based on car speeds
+            AudioManager.getInstance().updateEngineSound(
+                player1.getSpeed(), player2.getSpeed(), 350f);
+        }
+
+        // Handle race finish audio (play once)
+        if (raceManager.isRaceFinished() && !raceFinishSoundPlayed) {
+            raceFinishSoundPlayed = true;
+            AudioManager.getInstance().stopEngineSound();
+            AudioManager.getInstance().stopRaceMusic();
+            AudioManager.getInstance().playVictoryFanfare();
         }
 
         updateCamera(cameraP1, player1);
@@ -124,6 +167,7 @@ public class GameScreen implements Screen {
         Gdx.gl.glViewport(0, 0, screenWidth, screenHeight);
         drawDivider(screenWidth, screenHeight, halfWidth);
 
+        if (!countdownFinished) renderCountdownOverlay(screenWidth, screenHeight);
         if (paused) pauseOverlay.render(batch);
         if (raceManager.isRaceFinished()) renderFinishOverlay(screenWidth, screenHeight);
     }
@@ -181,6 +225,38 @@ public class GameScreen implements Screen {
             }
         }
         shapeRenderer.end();
+    }
+
+    private void renderCountdownOverlay(int screenWidth, int screenHeight) {
+        OrthographicCamera uiCamera = new OrthographicCamera(screenWidth, screenHeight);
+        uiCamera.position.set(screenWidth / 2f, screenHeight / 2f, 0);
+        uiCamera.update();
+
+        // Determine what text to show
+        String countdownText;
+        Color textColor;
+        if (countdownTimer > 3f) {
+            countdownText = "3";
+            textColor = Color.RED;
+        } else if (countdownTimer > 2f) {
+            countdownText = "2";
+            textColor = Color.YELLOW;
+        } else if (countdownTimer > 1f) {
+            countdownText = "1";
+            textColor = Color.GREEN;
+        } else {
+            countdownText = "START!";
+            textColor = Color.WHITE;
+        }
+
+        batch.setProjectionMatrix(uiCamera.combined);
+        batch.begin();
+        bigFont.setColor(textColor);
+        // Center the text on screen
+        float textX = screenWidth / 2f - (countdownText.length() * 20f);
+        float textY = screenHeight / 2f + 20f;
+        bigFont.draw(batch, countdownText, textX, textY);
+        batch.end();
     }
 
     private void handleInput() {
@@ -257,6 +333,8 @@ public class GameScreen implements Screen {
 
     @Override
     public void dispose() {
+        AudioManager.getInstance().stopRaceMusic();
+        AudioManager.getInstance().stopEngineSound();
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (bigFont != null) bigFont.dispose();
         if (trackMap != null) trackMap.dispose();
