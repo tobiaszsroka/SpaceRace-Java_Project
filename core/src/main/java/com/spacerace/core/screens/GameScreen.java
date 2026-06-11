@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
@@ -22,6 +23,7 @@ import com.spacerace.core.track.RaceManager;
 import com.spacerace.core.track.TrackMap;
 import com.spacerace.core.ui.GameHUD;
 import com.spacerace.core.ui.PauseOverlay;
+import com.spacerace.core.ui.UiPanel;
 
 public class GameScreen implements Screen {
 
@@ -34,6 +36,7 @@ public class GameScreen implements Screen {
 
     private ShapeRenderer shapeRenderer;
     private BitmapFont bigFont;
+    private final GlyphLayout finishOverlayLayout = new GlyphLayout();
 
     private TrackMap trackMap;
     private Car player1;
@@ -161,7 +164,7 @@ public class GameScreen implements Screen {
         updateCamera(cameraP1, player1, halfWidth, screenHeight);
         updateCamera(cameraP2, player2, halfWidth, screenHeight);
 
-        Gdx.gl.glClearColor(0.02f, 0.02f, 0.08f, 1f);
+        Gdx.gl.glClearColor(0.04f, 0.05f, 0.14f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         renderViewport(cameraP1, 0, halfWidth, screenHeight, player1);
@@ -198,6 +201,7 @@ public class GameScreen implements Screen {
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         Gdx.gl.glScissor(x, 0, width, height);
 
+        trackMap.renderBackdrop(batch, camera);
         trackMap.render(camera);
 
         shapeRenderer.setProjectionMatrix(camera.combined);
@@ -297,29 +301,19 @@ public class GameScreen implements Screen {
         camera.position.set(screenWidth / 2f, screenHeight / 2f, 0);
         camera.update();
 
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-        shapeRenderer.setProjectionMatrix(camera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(0f, 0f, 0f, 0.6f);
-        shapeRenderer.rect(0, 0, screenWidth, screenHeight);
-        shapeRenderer.end();
-        Gdx.gl.glDisable(GL20.GL_BLEND);
+        UiPanel.drawDimOverlay(shapeRenderer, camera, 0.65f);
 
         Car winner = raceManager.getWinner();
         String winnerName = (winner == player1) ? "PLAYER 1" : "PLAYER 2";
         String timeText = "Time: " + formatTime(hud.getRaceTimer());
-
-        batch.setProjectionMatrix(camera.combined);
-        batch.begin();
-        bigFont.setColor(winner.getColor());
-        bigFont.draw(batch, winnerName + " WINS!", screenWidth / 2f - 180f, screenHeight / 2f + 60f);
-        bigFont.setColor(Color.WHITE);
-        bigFont.draw(batch, timeText, screenWidth / 2f - 140f, screenHeight / 2f);
         BitmapFont smallFont = hud.getFont();
-        smallFont.setColor(Color.LIGHT_GRAY);
-        smallFont.draw(batch, "ESC - Back to Menu", screenWidth / 2f - 80f, screenHeight / 2f - 60f);
-        batch.end();
+
+        UiPanel.TextLine[] lines = {
+                new UiPanel.TextLine(bigFont, winnerName + " WINS!", winner.getColor()),
+                new UiPanel.TextLine(bigFont, timeText, Color.WHITE),
+                new UiPanel.TextLine(smallFont, "ESC - Back to Menu", Color.LIGHT_GRAY),
+        };
+        UiPanel.renderMenuPanel(shapeRenderer, batch, camera, finishOverlayLayout, lines, 16f);
     }
 
     private String formatTime(float seconds) {

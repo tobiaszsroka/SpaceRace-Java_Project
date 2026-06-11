@@ -1,11 +1,14 @@
 package com.spacerace.core.track;
 
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.maps.MapLayer;
 import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.MapProperties;
 import com.badlogic.gdx.maps.objects.RectangleMapObject;
 import com.badlogic.gdx.maps.tiled.TiledMap;
+import com.badlogic.gdx.maps.tiled.TiledMapImageLayer;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
@@ -36,6 +39,9 @@ public class TrackMap implements Disposable {
     private final TiledMapTileLayer wallsLayer;
     private final TiledMapTileLayer trackLayer;
 
+    private final Texture backdropTexture;
+    private final int[] tileLayerIndices;
+
     public TrackMap(String tmxPath) {
         map = new TmxMapLoader().load(tmxPath);
         renderer = new OrthogonalTiledMapRenderer(map);
@@ -49,11 +55,58 @@ public class TrackMap implements Disposable {
 
         wallsLayer = (TiledMapTileLayer) map.getLayers().get("walls");
         trackLayer = (TiledMapTileLayer) map.getLayers().get("track");
+
+        backdropTexture = findBackdropTexture();
+        tileLayerIndices = collectTileLayerIndices();
+    }
+
+    private Texture findBackdropTexture() {
+        for (MapLayer layer : map.getLayers()) {
+            if (layer instanceof TiledMapImageLayer imageLayer) {
+                Texture texture = imageLayer.getTextureRegion().getTexture();
+                texture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+                return texture;
+            }
+        }
+        return null;
+    }
+
+    private int[] collectTileLayerIndices() {
+        int count = 0;
+        for (MapLayer layer : map.getLayers()) {
+            if (layer instanceof TiledMapTileLayer) count++;
+        }
+        int[] indices = new int[count];
+        int i = 0;
+        for (int layerIndex = 0; layerIndex < map.getLayers().getCount(); layerIndex++) {
+            if (map.getLayers().get(layerIndex) instanceof TiledMapTileLayer) {
+                indices[i++] = layerIndex;
+            }
+        }
+        return indices;
+    }
+
+    /** Repeats the map image layer across the full camera view so edges stay cosmic, not black. */
+    public void renderBackdrop(SpriteBatch batch, OrthographicCamera camera) {
+        if (backdropTexture == null) return;
+
+        float tw = backdropTexture.getWidth();
+        float th = backdropTexture.getHeight();
+        float pad = Math.max(tw, th) * 0.25f;
+        float left = camera.position.x - camera.viewportWidth / 2f - pad;
+        float bottom = camera.position.y - camera.viewportHeight / 2f - pad;
+        float width = camera.viewportWidth + pad * 2f;
+        float height = camera.viewportHeight + pad * 2f;
+
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+        batch.draw(backdropTexture, left, bottom, width, height, 0f, 0f, width / tw, height / th);
+        batch.end();
     }
 
     public void render(OrthographicCamera camera) {
         renderer.setView(camera);
-        renderer.render();
+        renderer.render(tileLayerIndices);
     }
 
     public boolean isWall(float worldX, float worldY) {

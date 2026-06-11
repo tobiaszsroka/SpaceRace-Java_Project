@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="80" height="60" tilewidth="32" tileheight="32" infinite="0" nextlayerid="1" nextobjectid="1">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="80" height="60" tilewidth="32" tileheight="32" infinite="0" nextlayerid="2" nextobjectid="1">
  <tileset firstgid="1" name="placeholder" tilewidth="32" tileheight="32" tilecount="4" columns="1">
   <image source="placeholder_tiles.png" width="32" height="128"/>
  </tileset>
  <tileset firstgid="5" source="tiles tło.tsx"/>
+ <imagelayer id="1" name="Warstwa Obrazka 1" offsetx="-163.273" offsety="-39.6364">
+  <image source="5446991.jpg" width="3000" height="2000"/>
+ </imagelayer>
  <layer id="1" name="background" width="80" height="60" locked="1">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,

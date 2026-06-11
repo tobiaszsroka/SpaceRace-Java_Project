@@ -2,9 +2,9 @@ package com.spacerace.core.ui;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.Disposable;
@@ -14,6 +14,7 @@ public class PauseOverlay implements Disposable {
     private final ShapeRenderer shapeRenderer;
     private final BitmapFont titleFont;
     private final BitmapFont optionFont;
+    private final GlyphLayout layout = new GlyphLayout();
 
     public PauseOverlay() {
         shapeRenderer = new ShapeRenderer();
@@ -35,23 +36,14 @@ public class PauseOverlay implements Disposable {
         camera.position.set(w / 2f, h / 2f, 0);
         camera.update();
 
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        UiPanel.drawDimOverlay(shapeRenderer, camera, 0.65f);
 
-        shapeRenderer.setProjectionMatrix(camera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        shapeRenderer.setColor(0f, 0f, 0f, 0.7f);
-        shapeRenderer.rect(0, 0, w, h);
-        shapeRenderer.end();
-
-        Gdx.gl.glDisable(GL20.GL_BLEND);
-
-        batch.setProjectionMatrix(camera.combined);
-        batch.begin();
-        titleFont.draw(batch, "PAUSED", w / 2f - 90f, h / 2f + 60f);
-        optionFont.draw(batch, "ESC - Resume", w / 2f - 80f, h / 2f - 20f);
-        optionFont.draw(batch, "Q - Quit to Menu", w / 2f - 100f, h / 2f - 60f);
-        batch.end();
+        UiPanel.TextLine[] lines = {
+                new UiPanel.TextLine(titleFont, "PAUSED", Color.WHITE),
+                new UiPanel.TextLine(optionFont, "ESC - Resume", Color.LIGHT_GRAY),
+                new UiPanel.TextLine(optionFont, "Q - Quit to Menu", Color.LIGHT_GRAY),
+        };
+        UiPanel.renderMenuPanel(shapeRenderer, batch, camera, layout, lines, 18f);
     }
 
     @Override
